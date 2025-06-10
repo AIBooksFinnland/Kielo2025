@@ -1,0 +1,2192 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Typokorjaus - AI Grammar Assistant</title>
+    
+    <!-- Office.js - Only loads when in Word environment -->
+    <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js" type="text/javascript"></script>
+    
+    <style>
+        :root {
+            --primary: #5B5FDE;
+            --primary-dark: #4A4EBD;
+            --primary-light: #E8E9FF;
+            --secondary: #00C896;
+            --secondary-light: #E6F9F4;
+            --danger: #FF5757;
+            --danger-light: #FFE5E5;
+            --warning: #FFB800;
+            --warning-light: #FFF8E1;
+            --info: #00A2FF;
+            --info-light: #E6F4FF;
+            --text-primary: #1A1A2E;
+            --text-secondary: #646B8C;
+            --bg-primary: #FFFFFF;
+            --bg-secondary: #F8F9FB;
+            --bg-tertiary: #EEF0F5;
+            --border: #E1E4ED;
+            --shadow-sm: 0 2px 4px rgba(0,0,0,0.04);
+            --shadow-md: 0 4px 16px rgba(0,0,0,0.08);
+            --shadow-lg: 0 8px 32px rgba(0,0,0,0.12);
+            --radius-sm: 6px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            color: var(--text-primary);
+            background: var(--bg-secondary);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* Test Mode Banner */
+        .test-banner {
+            background: linear-gradient(90deg, var(--warning) 0%, var(--warning-light) 100%);
+            color: #7A5900;
+            padding: 10px;
+            text-align: center;
+            font-weight: 500;
+            font-size: 13px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            animation: slideDown 0.5s ease-out;
+        }
+
+        .test-banner.visible {
+            display: flex;
+        }
+
+        @keyframes slideDown {
+            from { transform: translateY(-100%); }
+            to { transform: translateY(0); }
+        }
+
+        .test-banner svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 32px 24px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -10%;
+            width: 50%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: float 20s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(180deg); }
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .header .subtitle {
+            font-size: 16px;
+            opacity: 0.9;
+            position: relative;
+            z-index: 1;
+        }
+
+        .header .version {
+            position: absolute;
+            top: 16px;
+            right: 24px;
+            background: rgba(255,255,255,0.2);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            backdrop-filter: blur(10px);
+        }
+
+        /* Login Section */
+        .login-section {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 60vh;
+            padding: 24px;
+        }
+
+        .login-card {
+            background: var(--bg-primary);
+            border-radius: var(--radius-lg);
+            padding: 32px;
+            box-shadow: var(--shadow-lg);
+            width: 100%;
+            max-width: 400px;
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .login-header h2 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+
+        .login-header p {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        .form-label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid var(--border);
+            border-radius: var(--radius-md);
+            font-size: 14px;
+            transition: var(--transition);
+            background: var(--bg-primary);
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(91, 95, 222, 0.1);
+        }
+
+        .login-error {
+            background: var(--danger-light);
+            color: var(--danger);
+            padding: 12px;
+            border-radius: var(--radius-md);
+            font-size: 14px;
+            margin-top: 16px;
+            display: none;
+        }
+
+        .login-error.visible {
+            display: block;
+        }
+
+        /* Main Container */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        /* Stats Bar */
+        .stats-bar {
+            background: var(--bg-primary);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 16px;
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .stat-item {
+            text-align: center;
+            flex: 1;
+            min-width: 100px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--primary);
+            display: block;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Control Panel */
+        .control-panel {
+            background: var(--bg-primary);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow-md);
+            animation: fadeInUp 0.7s ease-out 0.1s both;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .panel-title {
+            font-size: 20px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .panel-title svg {
+            width: 24px;
+            height: 24px;
+            color: var(--primary);
+        }
+
+        /* Section List */
+        .sections-container {
+            max-height: 400px;
+            overflow-y: auto;
+            margin-bottom: 24px;
+            padding-right: 8px;
+        }
+
+        .sections-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .sections-container::-webkit-scrollbar-track {
+            background: var(--bg-tertiary);
+            border-radius: 3px;
+        }
+
+        .sections-container::-webkit-scrollbar-thumb {
+            background: var(--primary);
+            border-radius: 3px;
+        }
+
+        .section-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            margin-bottom: 8px;
+            background: var(--bg-secondary);
+            border-radius: var(--radius-md);
+            transition: var(--transition);
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .section-item:hover {
+            background: var(--primary-light);
+            transform: translateX(4px);
+        }
+
+        .section-item.checked {
+            background: var(--primary-light);
+            border: 1px solid var(--primary);
+        }
+
+        .section-item.sub-item {
+            margin-left: 32px;
+            font-size: 14px;
+        }
+
+        .section-checkbox {
+            width: 20px;
+            height: 20px;
+            margin-right: 12px;
+            cursor: pointer;
+            position: relative;
+            -webkit-appearance: none;
+            appearance: none;
+            background: var(--bg-primary);
+            border: 2px solid var(--border);
+            border-radius: 4px;
+            transition: var(--transition);
+        }
+
+        .section-checkbox:checked {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+
+        .section-checkbox:checked::after {
+            content: '✓';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .section-icon {
+            width: 20px;
+            height: 20px;
+            margin-right: 12px;
+            color: var(--primary);
+        }
+
+        .section-title {
+            flex: 1;
+            font-weight: 500;
+        }
+
+        .section-word-count {
+            font-size: 12px;
+            color: var(--text-secondary);
+            background: var(--bg-tertiary);
+            padding: 2px 8px;
+            border-radius: 12px;
+        }
+
+        /* Options */
+        .options-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .option-card {
+            background: var(--bg-secondary);
+            padding: 16px;
+            border-radius: var(--radius-md);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: var(--transition);
+        }
+
+        .option-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .option-info {
+            flex: 1;
+        }
+
+        .option-label {
+            font-weight: 500;
+            margin-bottom: 4px;
+            display: block;
+        }
+
+        .option-description {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        /* Modern Toggle Switch */
+        .toggle-switch {
+            position: relative;
+            width: 48px;
+            height: 24px;
+            flex-shrink: 0;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--border);
+            transition: var(--transition);
+            border-radius: 24px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background: white;
+            transition: var(--transition);
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        input:checked + .toggle-slider {
+            background: var(--primary);
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(24px);
+        }
+
+        /* Action Buttons */
+        .actions-container {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        .btn-secondary:hover {
+            background: var(--border);
+        }
+
+        .btn svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        /* Loading State */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255,255,255,0.9);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            backdrop-filter: blur(4px);
+        }
+
+        .loading-overlay.active {
+            display: flex;
+        }
+
+        .loader-container {
+            text-align: center;
+        }
+
+        .loader {
+            width: 60px;
+            height: 60px;
+            border: 3px solid var(--primary-light);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loader-text {
+            font-size: 16px;
+            color: var(--text-secondary);
+        }
+
+        /* Corrections Area */
+        .corrections-area {
+            display: none;
+            animation: fadeInUp 0.5s ease-out;
+        }
+
+        .corrections-area.active {
+            display: block;
+        }
+
+        .correction-group {
+            margin-bottom: 24px;
+        }
+
+        .group-header {
+            background: var(--bg-tertiary);
+            padding: 12px 20px;
+            border-radius: var(--radius-md);
+            margin-bottom: 12px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .group-stats {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-weight: normal;
+        }
+
+        .correction-card {
+            background: var(--bg-primary);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: var(--shadow-sm);
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .correction-card:hover {
+            box-shadow: var(--shadow-md);
+            transform: translateY(-2px);
+        }
+
+        .correction-card.accepted {
+            animation: acceptCard 0.5s ease-out forwards;
+        }
+
+        .correction-card.rejected {
+            animation: rejectCard 0.5s ease-out forwards;
+        }
+
+        @keyframes acceptCard {
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+
+        @keyframes rejectCard {
+            to {
+                transform: translateX(-100%);
+                opacity: 0;
+            }
+        }
+
+        .correction-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .correction-type {
+            background: var(--primary-light);
+            color: var(--primary);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .correction-type.grammar {
+            background: var(--danger-light);
+            color: var(--danger);
+        }
+
+        .correction-type.style {
+            background: var(--info-light);
+            color: var(--info);
+        }
+
+        .correction-type.spelling {
+            background: var(--warning-light);
+            color: var(--warning);
+        }
+
+        .confidence-score {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .confidence-bar {
+            width: 60px;
+            height: 4px;
+            background: var(--bg-tertiary);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .confidence-fill {
+            height: 100%;
+            background: var(--secondary);
+            transition: width 0.3s ease;
+        }
+
+        .text-comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .text-block {
+            padding: 16px;
+            border-radius: var(--radius-md);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .text-original {
+            background: var(--danger-light);
+            border: 1px solid var(--danger);
+        }
+
+        .text-suggested {
+            background: var(--secondary-light);
+            border: 1px solid var(--secondary);
+        }
+
+        .text-label {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+            opacity: 0.7;
+        }
+
+        .diff-removed {
+            background: var(--danger);
+            color: white;
+            padding: 2px 4px;
+            border-radius: 3px;
+            text-decoration: line-through;
+        }
+
+        .diff-added {
+            background: var(--secondary);
+            color: white;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+
+        .explanation {
+            background: var(--bg-secondary);
+            padding: 12px;
+            border-radius: var(--radius-md);
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+            border-left: 3px solid var(--primary);
+        }
+
+        .correction-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+
+        .btn-sm {
+            padding: 8px 16px;
+            font-size: 13px;
+        }
+
+        .btn-accept {
+            background: var(--secondary);
+            color: white;
+        }
+
+        .btn-accept:hover {
+            background: #00A87E;
+        }
+
+        .btn-reject {
+            background: transparent;
+            color: var(--danger);
+            border: 1px solid var(--danger);
+        }
+
+        .btn-reject:hover {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-goto {
+            background: transparent;
+            color: var(--primary);
+            border: 1px solid var(--primary);
+        }
+
+        .btn-goto:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        /* No Issues Message */
+        .no-issues {
+            background: var(--secondary-light);
+            border: 1px solid var(--secondary);
+            padding: 24px;
+            border-radius: var(--radius-lg);
+            text-align: center;
+            margin: 16px 0;
+        }
+
+        .no-issues svg {
+            width: 48px;
+            height: 48px;
+            color: var(--secondary);
+            margin-bottom: 12px;
+        }
+
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            top: 80px;
+            right: 24px;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .toast {
+            background: white;
+            padding: 16px 20px;
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 300px;
+            animation: slideInRight 0.3s ease-out;
+            position: relative;
+            overflow: hidden;
+        }
+
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .toast.hiding {
+            animation: slideOutRight 0.3s ease-out forwards;
+        }
+
+        @keyframes slideOutRight {
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+
+        .toast::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+        }
+
+        .toast.success::before { background: var(--secondary); }
+        .toast.error::before { background: var(--danger); }
+        .toast.warning::before { background: var(--warning); }
+        .toast.info::before { background: var(--info); }
+
+        .toast-icon {
+            width: 24px;
+            height: 24px;
+            flex-shrink: 0;
+        }
+
+        .toast.success .toast-icon { color: var(--secondary); }
+        .toast.error .toast-icon { color: var(--danger); }
+        .toast.warning .toast-icon { color: var(--warning); }
+        .toast.info .toast-icon { color: var(--info); }
+
+        .toast-message {
+            flex: 1;
+            font-size: 14px;
+        }
+
+        .toast-close {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: color 0.2s;
+        }
+
+        .toast-close:hover {
+            color: var(--text-primary);
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--bg-tertiary);
+            display: none;
+            z-index: 1000;
+        }
+
+        .progress-container.active {
+            display: block;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        /* Mobile Responsiveness */
+        @media (max-width: 768px) {
+            .container {
+                padding: 16px;
+            }
+
+            .text-comparison {
+                grid-template-columns: 1fr;
+            }
+
+            .actions-container {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .correction-actions {
+                flex-wrap: wrap;
+            }
+
+            .btn-sm {
+                flex: 1;
+            }
+
+            .toast-container {
+                left: 16px;
+                right: 16px;
+            }
+
+            .toast {
+                min-width: auto;
+            }
+        }
+
+        /* Hide main content initially */
+        .main-content {
+            display: none;
+        }
+
+        .main-content.visible {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <!-- Test Mode Banner -->
+    <div class="test-banner" id="testBanner">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+        <span>TEST MODE – Office.js disabled for UI testing</span>
+    </div>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="version" id="versionBadge">v1.0</div>
+        <h1>Typokorjaus</h1>
+        <p class="subtitle">AI-pohjainen kirjoitusavustaja Microsoft Wordille</p>
+    </header>
+
+    <!-- Login Section -->
+    <div class="login-section" id="loginSection">
+        <div class="login-card">
+            <div class="login-header">
+                <h2>Kirjaudu sisään</h2>
+                <p>Syötä käyttäjätiedot päästäksesi käyttämään palvelua</p>
+            </div>
+            
+            <form id="loginForm">
+                <div class="form-group">
+                    <label class="form-label" for="username">Käyttäjänimi</label>
+                    <input type="text" id="username" class="form-input" placeholder="Syötä käyttäjänimi" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="password">Salasana</label>
+                    <input type="password" id="password" class="form-input" placeholder="Syötä salasana" required>
+                </div>
+                
+                <button type="submit" class="btn btn-primary" id="loginBtn" style="width: 100%;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M21 12H9"/>
+                    </svg>
+                    Kirjaudu sisään
+                </button>
+                
+                <div class="login-error" id="loginError">
+                    <!-- Error message will appear here -->
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content" id="mainContent">
+        <!-- Main Container -->
+        <div class="container">
+            <!-- Statistics Bar -->
+            <div class="stats-bar">
+                <div class="stat-item">
+                    <span class="stat-value" id="totalSections">0</span>
+                    <span class="stat-label">Osioita</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value" id="selectedSections">0</span>
+                    <span class="stat-label">Valittu</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value" id="totalWords">0</span>
+                    <span class="stat-label">Sanoja</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value" id="correctionsFound">0</span>
+                    <span class="stat-label">Korjauksia</span>
+                </div>
+            </div>
+
+            <!-- Control Panel -->
+            <div class="control-panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M4 6h16M4 12h16M4 18h16"/>
+                        </svg>
+                        Dokumentin osiot
+                    </h2>
+                    <button class="btn btn-sm btn-secondary" onclick="toggleAllSections()">
+                        Valitse kaikki
+                    </button>
+                </div>
+
+                <!-- Sections List -->
+                <div class="sections-container" id="sectionsContainer">
+                    <!-- Sections will be rendered here -->
+                </div>
+
+                <!-- Options -->
+                <div class="options-grid">
+                    <div class="option-card">
+                        <div class="option-info">
+                            <label class="option-label">Näytä kaikki alaotsikot</label>
+                            <span class="option-description">Sisällytä kaikki dokumentin tasot</span>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="toggleMainOnly" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="option-card">
+                        <div class="option-info">
+                            <label class="option-label">Yhdistä teksti yhdeksi kokonaisuudeksi</label>
+                            <span class="option-description">Käsittele yhtenä kokonaisuutena</span>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="toggleSingleChunk">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="option-card">
+                        <div class="option-info">
+                            <label class="option-label">Käytä tarkempaa AI-mallia</label>
+                            <span class="option-description">Hitaampi mutta tarkempi analyysi</span>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="toggleModelChoice">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="actions-container">
+                    <button class="btn btn-primary" id="processSectionsBtn" onclick="processSelectedSections()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                        Tarkasta valitut
+                    </button>
+                    <button class="btn btn-primary" id="processAllMainBtn" onclick="processAllSections()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                            <polyline points="22 4 12 14.01 9 11.01"/>
+                        </svg>
+                        Tarkasta kaikki
+                    </button>
+                    <button class="btn btn-secondary" id="loadMockDataBtn" onclick="loadMockData()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 15v4c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2v-4M17 9l-5 5-5-5M12 12.8V2.5"/>
+                        </svg>
+                        Lataa testidataa
+                    </button>
+                </div>
+            </div>
+
+            <!-- Corrections Area -->
+            <div class="corrections-area" id="correctionsArea">
+                <!-- Corrections will be rendered here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loader-container">
+            <div class="loader"></div>
+            <p class="loader-text">Analysoidaan tekstiä...</p>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Progress Bar -->
+    <div class="progress-container" id="progressContainer">
+        <div class="progress-bar" id="progressBar"></div>
+    </div>
+
+    <script>
+        // Global state - integrating with backend API
+        let flatSections = [];
+        let idMap = {};
+        let mainOnly = false;
+        let singleChunk = false;
+        let slowModel = false;
+        let session_token = null;
+        let currentCorrections = [];
+        let isTestMode = false;
+        let wordApi = null;
+        let loggedIn = false;
+        let officeReady = false;
+
+        // Configuration - Updated for your backend
+        const CONFIG = {
+            API_BASE: '', // Use relative URLs since we're on same server
+            API_TIMEOUT: 30000,
+            ENVIRONMENT: 'production'
+        };
+
+        // Detect environment and initialize
+        async function initializeApp() {
+            try {
+                // Detect if we're in Word or browser
+                if (typeof Office !== 'undefined' && Office.onReady) {
+                    // Office.js is available, try to initialize
+                    await new Promise((resolve, reject) => {
+                        Office.onReady((info) => {
+                            if (info.host === Office.HostType.Word) {
+                                isTestMode = false;
+                                wordApi = new WordAPI();
+                                officeReady = true;
+                                console.log('Running in Word environment');
+                                document.getElementById('versionBadge').textContent = 'v1.0 (Word)';
+                                resolve();
+                            } else {
+                                // Office.js loaded but not in Word
+                                isTestMode = true;
+                                officeReady = false;
+                                console.log('Office.js loaded but not in Word - running in test mode');
+                                setupTestMode();
+                                resolve();
+                            }
+                        });
+                    });
+                } else {
+                    // No Office.js - browser environment
+                    isTestMode = true;
+                    officeReady = false;
+                    console.log('Running in browser test mode');
+                    setupTestMode();
+                }
+
+                // Initialize UI
+                await initializeUI();
+
+            } catch (error) {
+                console.error('Initialization error:', error);
+                showNotification('Alustus epäonnistui: ' + error.message, 'error');
+                // Fallback to test mode
+                isTestMode = true;
+                officeReady = false;
+                setupTestMode();
+            }
+        }
+
+        // Setup test mode
+        function setupTestMode() {
+            document.getElementById('testBanner').classList.add('visible');
+            document.getElementById('versionBadge').textContent = 'v1.0 (Test Mode)';
+            
+            // Create mock Word API
+            if (!wordApi) {
+                wordApi = {
+                    getSections: async () => mockSectionsData(),
+                    searchAndReplace: async (text, replacement) => {
+                        console.log('Mock replace:', text, '->', replacement);
+                        return true;
+                    },
+                    navigateToText: async (text) => {
+                        console.log('Mock navigate to:', text);
+                        return true;
+                    }
+                };
+            }
+        }
+
+        // Initialize UI
+        async function initializeUI() {
+            // Setup login form
+            const loginForm = document.getElementById('loginForm');
+            loginForm.addEventListener('submit', handleLogin);
+
+            // Setup event listeners for toggles
+            document.getElementById('toggleMainOnly').addEventListener('change', (e) => {
+                mainOnly = !e.target.checked;
+                renderHeadings();
+                updateStats();
+            });
+
+            document.getElementById('toggleSingleChunk').addEventListener('change', (e) => {
+                singleChunk = e.target.checked;
+            });
+
+            document.getElementById('toggleModelChoice').addEventListener('change', (e) => {
+                slowModel = e.target.checked;
+            });
+        }
+
+        // Handle login
+        async function handleLogin(e) {
+            e.preventDefault();
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+            const errorDiv = document.getElementById('loginError');
+            
+            // Clear previous errors
+            errorDiv.classList.remove('visible');
+            errorDiv.textContent = '';
+
+            if (!username || !password) {
+                showLoginError('Täytä käyttäjänimi ja salasana.');
+                return;
+            }
+
+            // Disable button during request
+            const loginBtn = document.getElementById('loginBtn');
+            loginBtn.disabled = true;
+            loginBtn.textContent = 'Kirjaudutaan...';
+
+            try {
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password }),
+                    timeout: CONFIG.API_TIMEOUT
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    session_token = data.session_token;
+                    loggedIn = true;
+                    
+                    // Hide login, show main content
+                    document.getElementById('loginSection').style.display = 'none';
+                    document.getElementById('mainContent').classList.add('visible');
+                    
+                    showNotification('Kirjautuminen onnistui!', 'success');
+                    
+                    // Load sections if Office is ready
+                    if (officeReady && wordApi) {
+                        await loadWordSections();
+                    } else {
+                        loadMockSections();
+                    }
+                    
+                    updateStats();
+                    
+                } else {
+                    const errorData = await response.json();
+                    showLoginError(errorData.detail || 'Virhe tunnistautumisessa.');
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                showLoginError('Palvelinyhteys epäonnistui.');
+            } finally {
+                // Re-enable button
+                loginBtn.disabled = false;
+                loginBtn.innerHTML = `
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M21 12H9"/>
+                    </svg>
+                    Kirjaudu sisään
+                `;
+            }
+        }
+
+        // Show login error
+        function showLoginError(message) {
+            const errorDiv = document.getElementById('loginError');
+            errorDiv.textContent = message;
+            errorDiv.classList.add('visible');
+        }
+
+        // Word API wrapper
+        class WordAPI {
+            async getSections() {
+                return Word.run(async (context) => {
+                    const body = context.document.body;
+                    const paragraphs = body.paragraphs;
+                    context.load(paragraphs, 'items');
+                    
+                    await context.sync();
+                    
+                    const sections = [];
+                    let currentSection = null;
+                    
+                    for (let i = 0; i < paragraphs.items.length; i++) {
+                        const para = paragraphs.items[i];
+                        context.load(para, 'style,text,outlineLevel');
+                    }
+                    
+                    await context.sync();
+                    
+                    // Extract sections based on heading styles
+                    let headingInfo = [];
+                    paragraphs.items.forEach((para, index) => {
+                        const regex = /Heading\s*(\d+)$/i;
+                        const isHeading = para.style && regex.test(para.style);
+                        
+                        if (isHeading) {
+                            const level = parseInt(para.style.match(regex)[1], 10);
+                            headingInfo.push({ title: para.text, index: index, level });
+                        }
+                    });
+
+                    if (headingInfo.length === 0) {
+                        // No headings found, treat entire document as one section
+                        const entireText = paragraphs.items.map(p => p.text.trim()).join('\n').trim();
+                        if (entireText) {
+                            return [{
+                                id: 'entire-doc',
+                                level: 1,
+                                title: 'Koko teksti (ei otsikoita)',
+                                text: entireText,
+                                wordCount: entireText.split(/\s+/).length,
+                                children: []
+                            }];
+                        } else {
+                            return [];
+                        }
+                    } else {
+                        // Build sections tree from headings
+                        return this.buildSectionsFromHeadings(headingInfo, paragraphs.items);
+                    }
+                });
+            }
+
+            buildSectionsFromHeadings(headingInfo, paragraphs) {
+                const sections = [];
+                
+                for (let i = 0; i < headingInfo.length; i++) {
+                    const current = headingInfo[i];
+                    let endIndex = paragraphs.length;
+                    
+                    // Find where this section ends
+                    for (let j = i + 1; j < headingInfo.length; j++) {
+                        if (headingInfo[j].level <= current.level) {
+                            endIndex = headingInfo[j].index;
+                            break;
+                        }
+                    }
+                    
+                    // Extract text content
+                    let text = '';
+                    for (let k = current.index + 1; k < endIndex; k++) {
+                        if (paragraphs[k] && paragraphs[k].text) {
+                            text += paragraphs[k].text.trim() + '\n';
+                        }
+                    }
+                    text = text.trim();
+                    
+                    if (text) {
+                        sections.push({
+                            id: `sec-${current.index}`,
+                            title: current.title,
+                            level: current.level,
+                            text: text,
+                            wordCount: text.split(/\s+/).length,
+                            children: []
+                        });
+                    }
+                }
+                
+                return sections;
+            }
+
+            async searchAndReplace(searchText, replacement) {
+                return Word.run(async (context) => {
+                    const searchResults = context.document.body.search(searchText, {
+                        matchCase: false,
+                        matchWholeWord: false
+                    });
+                    
+                    context.load(searchResults);
+                    await context.sync();
+                    
+                    if (searchResults.items.length > 0) {
+                        searchResults.items[0].insertText(replacement, 'Replace');
+                        await context.sync();
+                        return true;
+                    }
+                    
+                    return false;
+                });
+            }
+
+            async navigateToText(searchText) {
+                return Word.run(async (context) => {
+                    const searchResults = context.document.body.search(searchText, {
+                        matchCase: false
+                    });
+                    
+                    context.load(searchResults);
+                    await context.sync();
+                    
+                    if (searchResults.items.length > 0) {
+                        searchResults.items[0].select();
+                        await context.sync();
+                        return true;
+                    }
+                    
+                    return false;
+                });
+            }
+        }
+
+        // Load sections from Word
+        async function loadWordSections() {
+            try {
+                showSpinner(true);
+                const sections = await wordApi.getSections();
+                
+                flatSections = sections;
+                idMap = {};
+                sections.forEach(section => {
+                    idMap[section.id] = section;
+                });
+                
+                renderHeadings();
+                showSpinner(false);
+                showNotification('Dokumentin osiot ladattu onnistuneesti', 'success');
+            } catch (error) {
+                console.error('Error loading Word sections:', error);
+                showNotification('Virhe ladattaessa dokumentin osioita', 'error');
+                showSpinner(false);
+                // Fallback to mock data
+                loadMockSections();
+            }
+        }
+
+        // Load mock sections for testing
+        function loadMockSections() {
+            flatSections = mockSectionsData();
+            idMap = {};
+            flatSections.forEach(section => {
+                idMap[section.id] = section;
+            });
+            renderHeadings();
+            showNotification('Testiosiot ladattu', 'info');
+        }
+
+        // Mock sections data
+        function mockSectionsData() {
+            return [
+                { id: '1', title: 'Johdanto', level: 1, wordCount: 450, text: 'Tämä on johdannon tekstiä. Tässä on esimerkki teksti jossa on useita kirjoitusvirhettä ja kielioppivirheitä. Minä olen opiskelut suomea monta vuotta mutta vielä teen virheitä.', children: [] },
+                { id: '1.1', title: 'Tausta', level: 2, wordCount: 200, text: 'Tausta-osiossa kerrotaan projektin taustoista. Maailman laajuinen pandemia on muuttanut meidän elämäämme merkittävästi.', children: [] },
+                { id: '1.2', title: 'Tavoitteet', level: 2, wordCount: 250, text: 'Tavoitteet ovat selkeästi määritellyt. Google Could Platform tarjoaa pilvipalveluita yrityksille.', children: [] },
+                { id: '2', title: 'Menetelmät', level: 1, wordCount: 800, text: 'Käytettävät menetelmät on kuvattu tarkasti. Tutkimuksessa käytetään sekä kvantitatiivisia että kvalitatiivisia menetelmiä.', children: [] },
+                { id: '2.1', title: 'Aineiston keruu', level: 2, wordCount: 400, text: 'Aineisto kerättiin strukturoidun kyselyn avulla. Vastaajia oli yhteensä 500 henkilöä.', children: [] },
+                { id: '2.2', title: 'Analyysi', level: 2, wordCount: 400, text: 'Analyysi tehtiin tilastollisilla menetelmillä. Käytettiin SPSS-ohjelmaa tietojen analysointiin.', children: [] },
+                { id: '3', title: 'Tulokset', level: 1, wordCount: 1200, text: 'Tulokset osoittavat selkeää yhteyttä muuttujien välillä. Hypoteesi sai vahvistusta aineistosta.', children: [] },
+                { id: '4', title: 'Johtopäätökset', level: 1, wordCount: 600, text: 'Johtopäätöksenä voidaan todeta, että tutkimus onnistui hyvin. Jatkotutkimuksia tarvitaan kuitenkin vielä.', children: [] }
+            ];
+        }
+
+        // Render sections in UI
+        function renderHeadings() {
+            const container = document.getElementById('sectionsContainer');
+            container.innerHTML = '';
+
+            if (!flatSections.length) {
+                container.innerHTML = '<p style="text-align: center; color: var(--text-secondary); padding: 20px;">Ei löytynyt yhtään tekstillistä osiota.</p>';
+                return;
+            }
+
+            const filteredSections = mainOnly ? 
+                flatSections.filter(s => s.level === 1) : 
+                flatSections;
+
+            filteredSections.forEach(section => {
+                const item = document.createElement('div');
+                item.className = `section-item ${section.level > 1 ? 'sub-item' : ''}`;
+                item.innerHTML = `
+                    <input type="checkbox" class="section-checkbox" id="check-${section.id}" data-id="${section.id}">
+                    <svg class="section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        ${section.level === 1 ? 
+                            '<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>' : 
+                            '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>'}
+                    </svg>
+                    <span class="section-title">${section.title}</span>
+                    <span class="section-word-count">${section.wordCount} sanaa</span>
+                `;
+
+                const checkbox = item.querySelector('.section-checkbox');
+                checkbox.addEventListener('change', () => {
+                    if (checkbox.checked) {
+                        item.classList.add('checked');
+                        if (section.level === 1) {
+                            autoSelectDescendants(section);
+                        }
+                    } else {
+                        item.classList.remove('checked');
+                    }
+                    updateStats();
+                });
+
+                item.addEventListener('click', (e) => {
+                    if (!e.target.classList.contains('section-checkbox')) {
+                        checkbox.checked = !checkbox.checked;
+                        checkbox.dispatchEvent(new Event('change'));
+                    }
+                });
+
+                container.appendChild(item);
+            });
+        }
+
+        // Auto-select child sections
+        function autoSelectDescendants(parentSection) {
+            flatSections.forEach(section => {
+                if (section.parent === parentSection.id) {
+                    const checkbox = document.getElementById(`check-${section.id}`);
+                    if (checkbox && !checkbox.checked) {
+                        checkbox.checked = true;
+                        const item = checkbox.closest('.section-item');
+                        if (item) item.classList.add('checked');
+                    }
+                }
+            });
+        }
+
+        // Toggle all sections
+        function toggleAllSections() {
+            const checkboxes = document.querySelectorAll('.section-checkbox');
+            const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+            
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = !allChecked;
+                const item = checkbox.closest('.section-item');
+                if (checkbox.checked) {
+                    item.classList.add('checked');
+                } else {
+                    item.classList.remove('checked');
+                }
+            });
+            
+            updateStats();
+        }
+
+        // Update statistics
+        function updateStats() {
+            const totalSections = flatSections.filter(s => !mainOnly || s.level === 1).length;
+            const checkedBoxes = document.querySelectorAll('.section-checkbox:checked');
+            const selectedCount = checkedBoxes.length;
+            
+            let totalWords = 0;
+            checkedBoxes.forEach(checkbox => {
+                const section = idMap[checkbox.dataset.id];
+                if (section) totalWords += section.wordCount;
+            });
+
+            document.getElementById('totalSections').textContent = totalSections;
+            document.getElementById('selectedSections').textContent = selectedCount;
+            document.getElementById('totalWords').textContent = totalWords.toLocaleString();
+        }
+
+        // Process selected sections
+        async function processSelectedSections() {
+            if (!loggedIn) {
+                showNotification('Kirjaudu ensin sisään', 'warning');
+                return;
+            }
+
+            const selectedIds = Array.from(document.querySelectorAll('.section-checkbox:checked'))
+                .map(cb => cb.dataset.id);
+
+            if (selectedIds.length === 0) {
+                showNotification('Valitse vähintään yksi osio tarkastettavaksi', 'warning');
+                return;
+            }
+
+            await performAnalysis(selectedIds);
+        }
+
+        // Process all sections
+        async function processAllSections() {
+            if (!loggedIn) {
+                showNotification('Kirjaudu ensin sisään', 'warning');
+                return;
+            }
+
+            const allIds = flatSections
+                .filter(s => !mainOnly || s.level === 1)
+                .map(s => s.id);
+            
+            await performAnalysis(allIds);
+        }
+
+        // Perform analysis - integrated with backend API
+        async function performAnalysis(sectionIds) {
+            showSpinner(true);
+            showProgress(true);
+
+            try {
+                // Prepare text for analysis
+                let textForCorrections = '';
+                const selectedTitles = [];
+
+                if (singleChunk) {
+                    // Combine all selected sections into one text
+                    sectionIds.forEach(id => {
+                        const section = idMap[id];
+                        if (section && section.text) {
+                            textForCorrections += section.text.trim() + '\n\n';
+                            selectedTitles.push(section.title);
+                        }
+                    });
+                    textForCorrections = textForCorrections.trim();
+                } else {
+                    // For now, combine anyway - individual processing would require multiple API calls
+                    sectionIds.forEach(id => {
+                        const section = idMap[id];
+                        if (section && section.text) {
+                            textForCorrections += section.text.trim() + '\n\n';
+                            selectedTitles.push(section.title);
+                        }
+                    });
+                    textForCorrections = textForCorrections.trim();
+                }
+
+                if (!textForCorrections) {
+                    throw new Error('Valitut osiot ovat tyhjiä');
+                }
+
+                // Call backend API
+                const response = await fetch('/process_sections', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        session_token: session_token,
+                        selected_titles: selectedTitles,
+                        text_for_corrections: textForCorrections,
+                        n_responses: 1,
+                        selected_model: slowModel ? 'slow' : 'fast'
+                    }),
+                    timeout: CONFIG.API_TIMEOUT
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || `API error: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                // Display results
+                await displayCorrectionsAsync(data);
+                
+                showNotification('Analyysi valmis!', 'success');
+                
+            } catch (error) {
+                console.error('Analysis error:', error);
+                showNotification('Analyysi epäonnistui: ' + error.message, 'error');
+                logErrorToBackend('Analysis error: ' + error.message);
+            } finally {
+                showSpinner(false);
+                setTimeout(() => showProgress(false), 500);
+            }
+        }
+
+        // Load mock data for testing
+        function loadMockData() {
+            if (!loggedIn) {
+                showNotification('Kirjaudu ensin sisään', 'warning');
+                return;
+            }
+
+            const mockResults = {
+                results: [{
+                    response_number: 1,
+                    corrections: [
+                        {
+                            original_sentence: "Tämä on esimerkki teksti jossa on useita kirjoitusvirhettä ja kielioppivirheitä.",
+                            explanation: "Yhdyssanavirhe: 'esimerkki teksti' tulisi olla 'esimerkkiteksti' sekä sijamuotovirhe: 'kirjoitusvirhettä' pitäisi olla monikossa 'kirjoitusvirheitä'.",
+                            corrected_sentence: "Tämä on esimerkkiteksti, jossa on useita kirjoitusvirheitä ja kielioppivirheitä."
+                        },
+                        {
+                            original_sentence: "Minä olen opiskelut suomea monta vuotta mutta vielä teen virheitä.",
+                            explanation: "Partisiippimuodon korjaus: 'opiskelut' pitäisi olla 'opiskellut'.",
+                            corrected_sentence: "Minä olen opiskellut suomea monta vuotta, mutta vielä teen virheitä."
+                        },
+                        {
+                            original_sentence: "Maailman laajuinen pandemia on muuttanut meidän elämäämme merkittävästi.",
+                            explanation: "Yhdyssanavirhe: 'maailman laajuinen' tulisi olla 'maailmanlaajuinen'.",
+                            corrected_sentence: "Maailmanlaajuinen pandemia on muuttanut meidän elämäämme merkittävästi."
+                        },
+                        {
+                            original_sentence: "Google Could Platform tarjoaa pilvipalveluita yrityksille.",
+                            explanation: "Kirjoitusvirhe: 'Google Could Platform' pitäisi olla 'Google Cloud Platform'.",
+                            corrected_sentence: "Google Cloud Platform tarjoaa pilvipalveluita yrityksille."
+                        }
+                    ],
+                    suggestion: "Korjattu tekstissä oli selkeitä yhdyssana- ja kirjoitusvirheitä, jotka on nyt korjattu."
+                }]
+            };
+            
+            displayCorrectionsAsync(mockResults);
+            showNotification('Testidataa ladattu!', 'info');
+        }
+
+        // Display corrections - updated format for new API
+        async function displayCorrectionsAsync(data) {
+            currentCorrections = data.results || [];
+            const correctionsArea = document.getElementById('correctionsArea');
+            correctionsArea.innerHTML = '';
+            correctionsArea.classList.add('active');
+
+            if (!data.results || !data.results.length) {
+                correctionsArea.innerHTML = `
+                    <div class="no-issues">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                            <polyline points="22 4 12 14.01 9 11.01"/>
+                        </svg>
+                        <h3>Ei korjauksia!</h3>
+                        <p>Teksti on kieliopillisesti moitteeton.</p>
+                    </div>
+                `;
+                document.getElementById('correctionsFound').textContent = '0';
+                return;
+            }
+
+            let totalCorrections = 0;
+            data.results.forEach((result, resultIndex) => {
+                const corrections = result.corrections || [];
+                totalCorrections += corrections.length;
+
+                // Create group for this response
+                const groupEl = document.createElement('div');
+                groupEl.className = 'correction-group';
+                
+                groupEl.innerHTML = `
+                    <div class="group-header">
+                        <span>Korjausehdotukset (vastaus ${result.response_number})</span>
+                        <span class="group-stats">${corrections.length} korjausta</span>
+                    </div>
+                `;
+
+                const groupContent = document.createElement('div');
+                groupContent.className = 'group-content';
+
+                if (corrections.length === 0) {
+                    groupContent.innerHTML = `
+                        <div class="no-issues">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                                <polyline points="22 4 12 14.01 9 11.01"/>
+                            </svg>
+                            <h3>Ei korjauksia!</h3>
+                            <p>${result.suggestion || 'Teksti on kieliopillisesti moitteeton.'}</p>
+                        </div>
+                    `;
+                } else {
+                    corrections.forEach((correction, index) => {
+                        const card = createCorrectionCard(correction, `${resultIndex}-${index}`);
+                        groupContent.appendChild(card);
+                    });
+                }
+
+                groupEl.appendChild(groupContent);
+                correctionsArea.appendChild(groupEl);
+            });
+
+            // Update stats
+            document.getElementById('correctionsFound').textContent = totalCorrections;
+
+            // Scroll to corrections
+            setTimeout(() => {
+                correctionsArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 100);
+        }
+
+        // Create correction card - updated for new API format
+        function createCorrectionCard(correction, index) {
+            const card = document.createElement('div');
+            card.className = 'correction-card';
+            card.dataset.index = index;
+
+            // Detect correction type based on explanation
+            let correctionType = 'grammar';
+            if (correction.explanation.toLowerCase().includes('kirjoitusvirhe')) {
+                correctionType = 'spelling';
+            } else if (correction.explanation.toLowerCase().includes('tyyli')) {
+                correctionType = 'style';
+            }
+
+            const typeLabels = {
+                grammar: 'Kielioppi',
+                style: 'Tyyli',
+                spelling: 'Oikeinkirjoitus'
+            };
+
+            const diff = diffHighlight(
+                correction.original_sentence || '', 
+                correction.corrected_sentence || ''
+            );
+
+            card.innerHTML = `
+                <div class="correction-header">
+                    <span class="correction-type ${correctionType}">${typeLabels[correctionType]}</span>
+                    <div class="confidence-score">
+                        <span>Varmuus: 85%</span>
+                        <div class="confidence-bar">
+                            <div class="confidence-fill" style="width: 85%"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="text-comparison">
+                    <div class="text-block text-original">
+                        <div class="text-label">Alkuperäinen</div>
+                        <div>${diff.original}</div>
+                    </div>
+                    <div class="text-block text-suggested">
+                        <div class="text-label">Ehdotus</div>
+                        <div>${diff.suggested}</div>
+                    </div>
+                </div>
+                
+                <div class="explanation">
+                    <strong>Selitys:</strong> ${correction.explanation}
+                </div>
+                
+                <div class="correction-actions">
+                    <button class="btn btn-sm btn-goto" onclick="goToOriginal('${(correction.original_sentence || '').replace(/'/g, "\\'")}', '${index}')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                        Siirry tekstiin
+                    </button>
+                    <button class="btn btn-sm btn-accept" onclick="acceptCorrection('${(correction.original_sentence || '').replace(/'/g, "\\'")}', '${(correction.corrected_sentence || '').replace(/'/g, "\\'")}', '${index}')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
+                            <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                        Hyväksy
+                    </button>
+                    <button class="btn btn-sm btn-reject" onclick="rejectCorrection('${index}')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
+                            <line x1="18" y1="6" x2="6" y2="18"/>
+                            <line x1="6" y1="6" x2="18" y2="18"/>
+                        </svg>
+                        Hylkää
+                    </button>
+                </div>
+            `;
+
+            return card;
+        }
+
+        // Diff highlighting
+        function diffHighlight(original, suggested) {
+            const origWords = original.split(' ');
+            const suggWords = suggested.split(' ');
+            
+            const lcs = computeLCS(origWords, suggWords);
+            const positions = reconstructLCSPositions(origWords, suggWords, lcs);
+            
+            let origHighlighted = '';
+            let suggHighlighted = '';
+            
+            origWords.forEach((word, i) => {
+                if (positions.orig.has(i)) {
+                    origHighlighted += word + ' ';
+                } else {
+                    origHighlighted += `<span class="diff-removed">${word}</span> `;
+                }
+            });
+            
+            suggWords.forEach((word, i) => {
+                if (positions.sugg.has(i)) {
+                    suggHighlighted += word + ' ';
+                } else {
+                    suggHighlighted += `<span class="diff-added">${word}</span> `;
+                }
+            });
+            
+            return {
+                original: origHighlighted.trim(),
+                suggested: suggHighlighted.trim(),
+                changed: origWords.join(' ') !== suggWords.join(' ')
+            };
+        }
+
+        // LCS computation
+        function computeLCS(a, b) {
+            const m = a.length;
+            const n = b.length;
+            const dp = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0));
+            
+            for (let i = 1; i <= m; i++) {
+                for (let j = 1; j <= n; j++) {
+                    if (a[i - 1] === b[j - 1]) {
+                        dp[i][j] = dp[i - 1][j - 1] + 1;
+                    } else {
+                        dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+                    }
+                }
+            }
+            
+            return { dp, length: dp[m][n] };
+        }
+
+        // Reconstruct LCS positions
+        function reconstructLCSPositions(a, b, lcs) {
+            const { dp } = lcs;
+            const origPositions = new Set();
+            const suggPositions = new Set();
+            
+            let i = a.length;
+            let j = b.length;
+            
+            while (i > 0 && j > 0) {
+                if (a[i - 1] === b[j - 1]) {
+                    origPositions.add(i - 1);
+                    suggPositions.add(j - 1);
+                    i--;
+                    j--;
+                } else if (dp[i - 1][j] > dp[i][j - 1]) {
+                    i--;
+                } else {
+                    j--;
+                }
+            }
+            
+            return { orig: origPositions, sugg: suggPositions };
+        }
+
+        // Accept correction
+        async function acceptCorrection(original, corrected, index) {
+            const card = document.querySelector(`[data-index="${index}"]`);
+            card.classList.add('accepted');
+            
+            try {
+                if (!isTestMode && wordApi) {
+                    await wordApi.searchAndReplace(original, corrected);
+                } else {
+                    console.log('Accepting correction:', { original, corrected });
+                }
+                
+                showNotification('Korjaus hyväksytty', 'success');
+            } catch (error) {
+                console.error('Error accepting correction:', error);
+                showNotification('Korjauksen hyväksyminen epäonnistui', 'error');
+                logErrorToBackend('Accept correction error: ' + error.message);
+            }
+            
+            setTimeout(() => {
+                removeCardAndScrollNext(card);
+            }, 500);
+        }
+
+        // Reject correction
+        function rejectCorrection(index) {
+            const card = document.querySelector(`[data-index="${index}"]`);
+            card.classList.add('rejected');
+            
+            showNotification('Korjaus hylätty', 'info');
+            
+            setTimeout(() => {
+                removeCardAndScrollNext(card);
+            }, 500);
+        }
+
+        // Go to original text
+        async function goToOriginal(text, index) {
+            try {
+                if (!isTestMode && wordApi) {
+                    await wordApi.navigateToText(text);
+                } else {
+                    console.log('Going to text:', text);
+                }
+                showNotification('Siirrytään tekstiin dokumentissa', 'info');
+            } catch (error) {
+                console.error('Error navigating to text:', error);
+                showNotification('Tekstiin siirtyminen epäonnistui', 'error');
+                logErrorToBackend('Navigate to text error: ' + error.message);
+            }
+        }
+
+        // Remove card and scroll to next
+        function removeCardAndScrollNext(card) {
+            const group = card.closest('.correction-group');
+            const nextCard = card.nextElementSibling;
+            
+            card.remove();
+            
+            // Check if group is empty
+            const remainingCards = group.querySelectorAll('.correction-card');
+            if (remainingCards.length === 0) {
+                const noIssues = document.createElement('div');
+                noIssues.className = 'no-issues';
+                noIssues.innerHTML = `
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                        <polyline points="22 4 12 14.01 9 11.01"/>
+                    </svg>
+                    <h3>Kaikki korjaukset käsitelty!</h3>
+                    <p>Tämän osion kaikki ehdotukset on käsitelty.</p>
+                `;
+                group.querySelector('.group-content').appendChild(noIssues);
+            } else if (nextCard) {
+                nextCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            
+            // Update correction count
+            const remainingTotal = document.querySelectorAll('.correction-card').length;
+            document.getElementById('correctionsFound').textContent = remainingTotal;
+        }
+
+        // Show/hide spinner
+        function showSpinner(show) {
+            const overlay = document.getElementById('loadingOverlay');
+            overlay.classList.toggle('active', show);
+            
+            // Disable buttons
+            const buttons = document.querySelectorAll('.btn');
+            buttons.forEach(btn => btn.disabled = show);
+        }
+
+        // Show/hide progress
+        function showProgress(show) {
+            const container = document.getElementById('progressContainer');
+            container.classList.toggle('active', show);
+            if (!show) {
+                updateProgress(0);
+            } else {
+                // Simulate progress
+                let progress = 0;
+                const interval = setInterval(() => {
+                    progress += Math.random() * 20;
+                    if (progress > 90) {
+                        progress = 90;
+                        clearInterval(interval);
+                    }
+                    updateProgress(progress);
+                }, 300);
+            }
+        }
+
+        // Update progress
+        function updateProgress(percent) {
+            document.getElementById('progressBar').style.width = `${percent}%`;
+        }
+
+        // Show notification (toast)
+        function showNotification(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            
+            const icons = {
+                success: '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>',
+                error: '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>',
+                warning: '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+                info: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>'
+            };
+            
+            toast.innerHTML = `
+                <svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    ${icons[type]}
+                </svg>
+                <span class="toast-message">${message}</span>
+                <svg class="toast-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            `;
+            
+            const closeBtn = toast.querySelector('.toast-close');
+            closeBtn.addEventListener('click', () => {
+                toast.classList.add('hiding');
+                setTimeout(() => toast.remove(), 300);
+            });
+            
+            container.appendChild(toast);
+            
+            // Auto remove after 4 seconds
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.classList.add('hiding');
+                    setTimeout(() => toast.remove(), 300);
+                }
+            }, 4000);
+        }
+
+        // Error logging to backend
+        function logErrorToBackend(message, details = {}) {
+            if (!session_token) return;
+            
+            fetch('/log_error', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    error: message,
+                    details: details,
+                    timestamp: new Date().toISOString(),
+                    userAgent: navigator.userAgent
+                })
+            }).catch(err => console.error('Failed to log error:', err));
+        }
+
+        // Initialize on document ready
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeApp();
+        });
+
+        // Handle errors
+        window.addEventListener('error', (event) => {
+            logErrorToBackend('Unhandled error: ' + event.message, {
+                filename: event.filename,
+                lineno: event.lineno,
+                colno: event.colno
+            });
+        });
+    </script>
+</body>
+</html>
