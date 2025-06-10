@@ -176,7 +176,8 @@ async def process_sections(data:ProcessSectionsRequest):
         api_key,
         system_prompt,
         n_responses=data.n_responses,
-        chosen_model=chosen_model
+        chosen_model=chosen_model,
+        use_discriminator=True  # Enable o3 discriminator for quality validation
     )
 
     try:

@@ -7,14 +7,16 @@ logging.basicConfig(level=logging.DEBUG, filename='debug.log',
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 from openai import AsyncOpenAI
+from discriminator import GrammarDiscriminator
 
 
 
 class WordGrammarChecker:
     def __init__(self, api_key, system_prompt, max_concurrent_requests=5, n_responses=1,
-                 chosen_model="fast"):
+                 chosen_model="fast", use_discriminator=True):
         """
         :param chosen_model: "fast" => use gpt-4o, "slow" => use o3-mini + reasoning_effort=high
+        :param use_discriminator: Whether to use the o3 discriminator for validation
         """
         self.api_key = api_key
         self.system_prompt = system_prompt
@@ -22,6 +24,7 @@ class WordGrammarChecker:
         self.semaphore = asyncio.Semaphore(self.max_concurrent_requests)
         self.n_responses = n_responses
         self.text_data = ""
+        self.use_discriminator = use_discriminator
 
         self.chosen_model = chosen_model  # "fast" or "slow"
 
@@ -30,6 +33,14 @@ class WordGrammarChecker:
             self.api_key = self.api_key.strip('"\'')
             
         self.client = AsyncOpenAI(api_key=self.api_key)
+        
+        # Initialize discriminator if enabled
+        if self.use_discriminator:
+            self.discriminator = GrammarDiscriminator(self.api_key)
+            logging.info("Discriminator initialized with o3 model")
+        else:
+            self.discriminator = None
+            logging.info("Discriminator disabled")
 
     def create_payload(self):
         # Decide model
@@ -192,6 +203,30 @@ class WordGrammarChecker:
         results_per_response = []
         for resp_model in responses:
             corrections, suggestion = self.extract_corrections(resp_model)
+            
+            # Apply discriminator filtering if enabled
+            if self.use_discriminator and self.discriminator and corrections:
+                try:
+                    logging.info(f"Applying discriminator to {len(corrections)} corrections")
+                    filtered_corrections, metadata = await self.discriminator.filter_corrections(
+                        corrections, 
+                        self.text_data
+                    )
+                    
+                    # Log discriminator results
+                    logging.info(f"Discriminator results: {metadata['filtered_count']}/{metadata['original_count']} corrections passed, "
+                               f"quality score: {metadata['quality_score']}/100")
+                    
+                    # Update suggestion to include discriminator info
+                    discriminator_note = f" (Discriminator: {metadata['filtered_count']}/{metadata['original_count']} korjausta hyväksytty, laatu: {metadata['quality_score']}/100)"
+                    suggestion = (suggestion or "tarvetta kielioppikorjauksille") + discriminator_note
+                    
+                    corrections = filtered_corrections
+                    
+                except Exception as e:
+                    logging.error(f"Discriminator error: {e}")
+                    # Continue with original corrections if discriminator fails
+            
             results_per_response.append((corrections, suggestion))
 
         return results_per_response, responses
